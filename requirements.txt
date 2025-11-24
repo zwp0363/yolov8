@@ -1,0 +1,41 @@
+# Ultralytics YOLOv8 - Ubuntu 20.04环境优化版
+# Python 3.9, PyTorch 2.0.1, CUDA 11.8
+
+# 核心依赖项
+numpy>=1.23.0
+matplotlib>=3.3.0
+opencv-python>=4.6.0
+pillow>=7.1.2
+pyyaml>=5.3.1
+requests>=2.23.0
+scipy>=1.4.1
+# 特定版本的PyTorch和torchvision以匹配CUDA 11.8
+torch==2.0.1
+ torchvision==0.15.2
+# 注意：torch和torchvision的安装可能需要特定的CUDA版本命令，见下方说明
+tqdm>=4.64.0
+psutil
+py-cpuinfo
+pandas>=1.1.4
+ultralytics-thop>=2.0.0
+
+# 模型导出依赖项
+# 这些是常用的导出功能依赖，与CUDA 11.8兼容
+onnx>=1.12.0,<1.18.0
+openvino>=2024.0.0
+
+# 解决方案模块依赖项
+shapely>=2.0.0
+streamlit>=1.29.0
+flask
+
+# 日志和监控依赖项
+wandb
+tensorboard
+mlflow
+
+# 额外功能依赖项
+hub-sdk>=0.0.12
+ipython
+albumentations>=1.4.6
+pycocotools>=2.0.7
