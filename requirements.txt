@@ -10,7 +10,7 @@ pyyaml>=5.3.1
 requests>=2.23.0
 scipy>=1.4.1
 # 特定版本的PyTorch和torchvision以匹配CUDA 11.8
-torch==2.0.1
+torch==2.8.0
  torchvision==0.15.2
 # 注意：torch和torchvision的安装可能需要特定的CUDA版本命令，见下方说明
 tqdm>=4.64.0
