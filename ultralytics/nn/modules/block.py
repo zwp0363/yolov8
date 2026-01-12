@@ -23,6 +23,7 @@ __all__ = (
     "C3",
     "C2f",
     "C2fAttn",
+    "C2f_BiFPN",
     "ImagePoolingAttn",
     "ContrastiveHead",
     "BNContrastiveHead",
@@ -2031,3 +2032,45 @@ class SAVPE(nn.Module):
         aggregated = score.transpose(-2, -3) @ x.reshape(B, self.c, C // self.c, -1).transpose(-1, -2)
 
         return F.normalize(aggregated.transpose(-2, -3).reshape(B, Q, -1), dim=-1, p=2)
+
+class C2f_BiFPN(nn.Module):
+    """C2f_BiFPN: C2f module with Bidirectional Feature Pyramid Network (BiFPN) fusion."""
+
+    def __init__(self, c1: int, c2: int, n: int = 1, shortcut: bool = False, g: int = 1, e: float = 0.5):
+        """
+        Initialize C2f_BiFPN module with specified parameters.
+
+        Args:
+            c1 (int): Input channels.
+            c2 (int): Output channels.
+            n (int): Number of Bottleneck blocks.
+            shortcut (bool): Whether to use shortcut connections.
+            g (int): Groups for convolutions.
+            e (float): Expansion ratio.
+        """
+        super().__init__()
+        self.c = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, 2 * self.c, 1, 1)
+        self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
+        
+        # BiFPN-style feature fusion
+        self.fuse_conv = Conv(2 * self.c, 2 * self.c, 3, 1, 1, g=g)
+        
+        self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through C2f_BiFPN layer with BiFPN-style feature fusion."""
+        # Split input features
+        y = list(self.cv1(x).chunk(2, 1))
+        
+        # BiFPN-style fusion
+        fused = self.fuse_conv(torch.cat((y[0], y[1]), 1))
+        fused_split = list(fused.chunk(2, 1))
+        
+        # Add fused features back
+        y[0] = y[0] + fused_split[0]
+        y[1] = y[1] + fused_split[1]
+        
+        # Continue with C2f-style processing
+        y.extend(m(y[-1]) for m in self.m)
+        return self.cv2(torch.cat(y, 1))

@@ -20,6 +20,8 @@ __all__ = (
     "ChannelAttention",
     "SpatialAttention",
     "CBAM",
+    "CoordAtt",
+    "SimAM",
     "Concat",
     "RepConv",
     "Index",
@@ -626,12 +628,13 @@ class CBAM(nn.Module):
         spatial_attention (SpatialAttention): Spatial attention module.
     """
 
-    def __init__(self, c1, kernel_size=7):
+    def __init__(self, c1, c2, kernel_size=7):
         """
         Initialize CBAM with given parameters.
 
         Args:
             c1 (int): Number of input channels.
+            c2 (int): Number of output channels (unused, kept for compatibility).
             kernel_size (int): Size of the convolutional kernel for spatial attention.
         """
         super().__init__()
@@ -710,4 +713,96 @@ class Index(nn.Module):
         Returns:
             (torch.Tensor): Selected tensor.
         """
-        return x[self.index]
+        return x[self.index]\
+
+class CoordAtt(nn.Module):
+    """
+    Coordinate Attention (CoordAtt) module for mobile network design.
+    This module combines channel attention and positional information to capture long-range dependencies.
+    """
+
+    def __init__(self, c1, c2=None, reduction=32):
+        """
+        Initialize CoordAtt module with given parameters.
+
+        Args:
+            c1 (int): Number of input channels.
+            c2 (int): Number of output channels (default: same as input).
+            reduction (int): Reduction ratio for channel dimension.
+        """
+        super().__init__()
+        self.c1 = c1
+        self.c2 = c2 if c2 is not None else c1
+        self.reduction = reduction
+        
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+        
+        # 使用正确的输入通道数创建fc1层
+        mip = max(8, self.c1 // self.reduction)
+        self.fc1 = nn.Conv2d(self.c1, mip, kernel_size=1, stride=1, padding=0)
+        self.bn = nn.BatchNorm2d(mip)
+        self.act = nn.ReLU()
+        
+        self.fc_h = nn.Conv2d(mip, self.c2, kernel_size=1, stride=1, padding=0)
+        self.fc_w = nn.Conv2d(mip, self.c2, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        """
+        Apply coordinate attention to input tensor.
+
+        Args:
+            x (torch.Tensor): Input tensor with shape (batch, channels, height, width).
+
+        Returns:
+            (torch.Tensor): Output tensor with attention applied.
+        """
+        identity = x
+        n, c, h, w = x.size()
+
+        # 确保输入通道数与预期一致
+        assert c == self.c1, f"Input channels {c} must match configured channels {self.c1}"
+
+        # Height-wise attention
+        x_h = self.pool_h(x)  # 形状: (n, c, h, 1)
+        x_h = x_h.permute(0, 1, 3, 2)  # 形状: (n, c, 1, h)
+
+        # Width-wise attention
+        x_w = self.pool_w(x)  # 形状: (n, c, 1, w)
+
+        # Concatenate and process
+        y = torch.cat([x_h, x_w], dim=3)  # 形状: (n, c, 1, h + w)
+        y = self.fc1(y)  # 使用正确的输入通道数
+        y = self.bn(y)
+        y = self.act(y)
+
+        # Split and apply attention
+        x_h, x_w = torch.split(y, [h, w], dim=3)
+        x_h = x_h.permute(0, 1, 3, 2)  # 形状: (n, c, h, 1)
+
+        a_h = self.fc_h(x_h).sigmoid()  # 形状: (n, c2, h, 1)
+        a_w = self.fc_w(x_w).sigmoid()  # 形状: (n, c2, 1, w)
+
+        # Apply attention to input
+        out = identity * a_h * a_w
+
+        return out
+    
+class SimAM(nn.Module):
+    """
+    SimAM (Simple Attention Module) is a parameter-free attention module.
+    
+    Args:
+        e_lambda (float): Hyperparameter controlling the smoothness of the attention map.
+    """
+    def __init__(self, c1, c2, e_lambda=1e-4):
+        super(SimAM, self).__init__()
+        self.activation = nn.Sigmoid()
+        self.e_lambda = e_lambda
+
+    def forward(self, x):
+        b, c, h, w = x.size()
+        n = w * h - 1
+        x_minus_mu_square = (x - x.mean(dim=(2, 3), keepdim=True)) ** 2
+        y = x_minus_mu_square / (4 * (x_minus_mu_square.sum(dim=(2, 3), keepdim=True) / n + self.e_lambda)) + 0.5
+        return x * self.activation(y)

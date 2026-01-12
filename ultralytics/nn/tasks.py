@@ -18,6 +18,8 @@ from ultralytics.nn.modules import (
     C2,
     C2PSA,
     C3,
+    CBAM,
+    CoordAtt,
     C3TR,
     ELAN1,
     OBB,
@@ -32,6 +34,7 @@ from ultralytics.nn.modules import (
     BottleneckCSP,
     C2f,
     C2fAttn,
+    C2f_BiFPN,
     C2fCIB,
     C2fPSA,
     C3Ghost,
@@ -64,6 +67,7 @@ from ultralytics.nn.modules import (
     RTDETRDecoder,
     SCDown,
     Segment,
+    SimAM,
     TorchVision,
     WorldDetect,
     YOLOEDetect,
@@ -1639,7 +1643,11 @@ def parse_model(d, ch, verbose=True):
             A2C2f,
             SPPF_LSKA,
             VoVGSCSP,
-            GSConv
+            GSConv,
+            CoordAtt,
+            CBAM,
+            SimAM,
+            C2f_BiFPN 
         }
     )
     repeat_modules = frozenset(  # modules with 'repeat' arguments
