@@ -24,6 +24,7 @@ __all__ = (
     "C2f",
     "C2fAttn",
     "C2f_BiFPN",
+    "Fusion",
     "ImagePoolingAttn",
     "ContrastiveHead",
     "BNContrastiveHead",
@@ -2074,3 +2075,75 @@ class C2f_BiFPN(nn.Module):
         # Continue with C2f-style processing
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
+
+class Fusion(nn.Module):
+    """BiFPN Fusion Block with Auto-Channel Alignment"""
+    def __init__(self, inc, outc, fusion='bifpn', epsilon=1e-4):
+        super().__init__()
+        self.epsilon = epsilon
+        self.w = nn.Parameter(torch.ones(len(inc), dtype=torch.float32), requires_grad=True)
+        self.fusion = fusion
+        
+        # --- [关键修改] 自动通道对齐层 ---
+        # 如果输入通道 != 输出通道，创建一个 1x1 卷积来调整它
+        # 如果相等，则直接使用 Identity (不做处理)
+        self.projections = nn.ModuleList()
+        for ch in inc:
+            if ch != outc:
+                conv = nn.Conv2d(ch, outc, kernel_size=1, bias=False)
+                # [新增] 初始化这个卷积，防止初始梯度爆炸
+                nn.init.kaiming_normal_(conv.weight, mode='fan_out', nonlinearity='relu')
+                # 使用 1x1 卷积将通道数从 ch 调整为 outc
+                self.projections.append(nn.Conv2d(ch, outc, kernel_size=1, bias=False))
+            else:
+                self.projections.append(nn.Identity())
+        
+    def forward(self, x):
+        # x 是列表 [input1, input2, ...]
+        
+        # 1. 先对齐所有输入的通道数
+        projected_x = []
+        for i, tensor in enumerate(x):
+            projected_x.append(self.projections[i](tensor))
+            
+        # 2. 处理融合权重 (使用 clone 避免 inplace 报错)
+        w = torch.relu(self.w.clone())
+        w = w / (torch.sum(w, dim=0) + self.epsilon)
+        
+        # 3. 加权求和
+        # 既然通道数已经对齐，现在可以安全地相加了
+        out = 0
+        for i in range(len(projected_x)):
+            out += w[i] * projected_x[i]
+            
+        return out
+
+class EMA(nn.Module):
+    """Efficient Multi-Scale Attention"""
+    def __init__(self, channels, factor=8):
+        super(EMA, self).__init__()
+        self.groups = factor
+        assert channels // self.groups > 0
+        self.softmax = nn.Softmax(-1)
+        self.agp = nn.AdaptiveAvgPool2d((1, 1))
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+        self.gn = nn.GroupNorm(channels // self.groups, channels // self.groups)
+        self.conv1x1 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=1, stride=1, padding=0)
+        self.conv3x3 = nn.Conv2d(channels // self.groups, channels // self.groups, kernel_size=3, stride=1, padding=1)
+
+    def forward(self, x):
+        b, c, h, w = x.size()
+        group_x = x.reshape(b * self.groups, -1, h, w)  # b*g,c//g,h,w
+        x_h = self.pool_h(group_x)
+        x_w = self.pool_w(group_x).permute(0, 1, 3, 2)
+        hw = self.conv1x1(torch.cat([x_h, x_w], dim=2))
+        x_h, x_w = torch.split(hw, [h, w], dim=2)
+        x1 = self.gn(group_x * x_h.sigmoid() * x_w.permute(0, 1, 3, 2).sigmoid())
+        x2 = self.conv3x3(group_x)
+        x11 = self.softmax(self.agp(x1).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
+        x12 = x2.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
+        x21 = self.softmax(self.agp(x2).reshape(b * self.groups, -1, 1).permute(0, 2, 1))
+        x22 = x1.reshape(b * self.groups, c // self.groups, -1)  # b*g, c//g, hw
+        weights = (torch.matmul(x11, x12) + torch.matmul(x21, x22)).reshape(b * self.groups, 1, h, w)
+        return (group_x * weights.sigmoid()).reshape(b, c, h, w)

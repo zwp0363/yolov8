@@ -17,6 +17,11 @@ Examples:
     >>> os.system(f"onnxslim {f} {f} && open {f}")  # pip install onnxslim
 """
 
+# 导入自定义模块
+from .RFAConv import C2f_RFAConv
+from .custom_modules import LSKA, VoVGSCSP_WFU, BIFPN_SDI, C2f_DEConv, LSCD
+from .DyHead import DyHead
+from .DySample import DySample
 from .block import (
     C1,
     C2,
@@ -60,6 +65,8 @@ from .block import (
     ResNetLayer,
     SCDown,
     TorchVision,
+    Fusion,
+    EMA
 )
 from .conv import (
     CBAM,
@@ -125,6 +132,11 @@ __all__ = (
     "MLPBlock",
     "LayerNorm2d",
     "DFL",
+    "DyHead",
+    "Fusion",
+    "DySample",
+    "EMA",
+    "C2f_RFAConv",
     "HGBlock",
     "HGStem",
     "SPP",
@@ -184,4 +196,16 @@ __all__ = (
     "TorchVision",
     "Index",
     "A2C2f",
+    'LSKA',
+    'VoVGSCSP_WFU',
+    'BIFPN_SDI',
+    'C2f_DEConv',
+    'LSCD'
 )
+
+# 显式加入全局作用域，让 parse_model 能找到（核心解决代码）
+LSKA = LSKA
+VoVGSCSP_WFU = VoVGSCSP_WFU
+BIFPN_SDI = BIFPN_SDI
+C2f_DEConv = C2f_DEConv
+LSCD = LSCD

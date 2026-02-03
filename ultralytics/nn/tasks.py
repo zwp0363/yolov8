@@ -12,6 +12,8 @@ import torch.nn as nn
 
 from .mymodules import *
 from ultralytics.nn.autobackend import check_class_names
+# 导入自定义模块，路径对应 modules/custom_modules.py
+from ultralytics.nn.modules.custom_modules import LSKA, VoVGSCSP_WFU, BIFPN_SDI, C2f_DEConv, LSCD, LSCD_Detect
 from ultralytics.nn.modules import (
     AIFI,
     C1,
@@ -72,7 +74,12 @@ from ultralytics.nn.modules import (
     WorldDetect,
     YOLOEDetect,
     YOLOESegment,
-    v10Detect
+    v10Detect,
+    DyHead,
+    Fusion,
+    DySample,
+    EMA,
+    C2f_RFAConv
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -1647,7 +1654,8 @@ def parse_model(d, ch, verbose=True):
             CoordAtt,
             CBAM,
             SimAM,
-            C2f_BiFPN 
+            C2f_BiFPN,
+            C2f_RFAConv
         }
     )
     repeat_modules = frozenset(  # modules with 'repeat' arguments
@@ -1668,9 +1676,10 @@ def parse_model(d, ch, verbose=True):
             C2PSA,
             A2C2f,
             VoVGSCSP,
+            C2f_RFAConv
         }
     )
-    for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
+    for i, (f, n, m, args) in enumerate(d["backbone"] + d.get("neck", []) + d["head"]):  # from, number, module, args
         m = (
             getattr(torch.nn, m[3:])
             if "nn." in m
@@ -1719,8 +1728,34 @@ def parse_model(d, ch, verbose=True):
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
+
+        # =======================================================
+        # 【新增】Fusion 模块专用逻辑
+        # =======================================================
+        elif m is Fusion:
+            # args[0] 在 yaml 里是 [512]，所以 args[0] 就是输出通道数
+            c2 = args[0] 
+            # 这里的 f 是列表 [-1, 6]，我们需要取出这两层的实际通道数
+            # 这一步至关重要，它构建了 Fusion 所需的输入通道列表
+            c1 = [ch[x] for x in f] 
+            args = [c1, c2] # 重构 args，传入 [input_channels_list, output_channel]
+        # =======================================================
+
+        # =======================================================
+        # 【新增】DySample 模块专用逻辑
+        # =======================================================
+        elif m is DySample:
+            # DySample 需要 (in_channels, scale)
+            c1 = ch[f] # 获取输入通道数
+            c2 = c1    # 上采样不改变通道数
+            # args[0] 是 yaml 里的 [2]，即 scale_factor
+            args = [c1, args[0]] 
+        # =======================================================
+
+        elif m is EMA: args = [ch[f]]
+        
         elif m in frozenset(
-            {Detect, WorldDetect, YOLOEDetect, Segment, YOLOESegment, Pose, OBB, ImagePoolingAttn, v10Detect}
+            {Detect, WorldDetect, YOLOEDetect, Segment, YOLOESegment, Pose, OBB, ImagePoolingAttn, v10Detect, DyHead, LSCD_Detect}
         ):
             args.append([ch[x] for x in f])
             if m is Segment or m is YOLOESegment:

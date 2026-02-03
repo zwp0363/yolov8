@@ -1,5 +1,5 @@
 # Ultralytics 🚀 AGPL-3.0 License - https://ultralytics.com/license
-
+import math  # <--- 添加这一行
 from typing import Any, Dict, List, Tuple
 
 import torch
@@ -160,6 +160,36 @@ class RotatedBboxLoss(BboxLoss):
         weight = target_scores.sum(-1)[fg_mask].unsqueeze(-1)
         iou = probiou(pred_bboxes[fg_mask], target_bboxes[fg_mask])
         loss_iou = ((1.0 - iou) * weight).sum() / target_scores_sum
+        # ---------------- WIoU v1 最终修改版 (开始) ----------------
+        # # 1. 计算基础 IoU (关闭 CIoU)
+        # iou = bbox_iou(pred_bboxes[fg_mask], target_bboxes[fg_mask], xywh=False, CIoU=False)
+        
+        # # 2. 准备坐标数据
+        # pred_bboxes_chunk = pred_bboxes[fg_mask]
+        # target_bboxes_chunk = target_bboxes[fg_mask]
+        # b1_x1, b1_y1, b1_x2, b1_y2 = pred_bboxes_chunk.chunk(4, -1)
+        # b2_x1, b2_y1, b2_x2, b2_y2 = target_bboxes_chunk.chunk(4, -1)
+        
+        # # 3. 计算最小外接矩形 (Enclosing Box) 的宽和高
+        # w_g = torch.max(b1_x2, b2_x2) - torch.min(b1_x1, b2_x1)
+        # h_g = torch.max(b1_y2, b2_y2) - torch.min(b1_y1, b2_y1)
+        
+        # # 4. 计算中心点距离平方 (rho2)
+        # cx1, cy1 = (b1_x1 + b1_x2) / 2, (b1_y1 + b1_y2) / 2
+        # cx2, cy2 = (b2_x1 + b2_x2) / 2, (b2_y1 + b2_y2) / 2
+        # rho2 = (cx1 - cx2) ** 2 + (cy1 - cy2) ** 2
+        
+        # # 5. 计算对角线距离平方 (c2)
+        # c2 = w_g ** 2 + h_g ** 2 + 1e-7
+        
+        # # 6. 计算 WIoU 距离注意力 (Distance Attention)
+        # # WIoU v1 公式: L = (1 - IoU) * exp(rho2 / c2)
+        # dist_attn = torch.exp(rho2 / c2)
+        # loss_wiou = (1.0 - iou) * dist_attn
+        
+        # # 7. 计算最终加权 Loss
+        # loss_iou = (loss_wiou * weight).sum() / target_scores_sum
+        # ---------------- WIoU v1 最终修改版 (结束) ----------------
 
         # DFL loss
         if self.dfl_loss:
