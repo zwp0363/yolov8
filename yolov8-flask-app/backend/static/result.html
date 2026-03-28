@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>检测结果 - YOLOv8 目标检测</title>
+    <title>检测结果 - 道路车辆检测系统</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
@@ -14,13 +14,102 @@
             margin-left: 10px;
             object-fit: cover;
         }
+        
+        /* 美化样式 */
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+        }
+        
+        h1 {
+            color: #343a40;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+        }
+        
+        h3 {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            font-size: 1.25rem;
+        }
+        
+        .card {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        #result-image {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #result-image img {
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 0.5rem;
+        }
+        
+        #detections {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            background-color: #ffffff;
+            min-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .detection-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            border-left: 4px solid #007bff;
+        }
+        
+        .detection-item h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            color: #343a40;
+        }
+        
+        .detection-item p {
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+            color: #495057;
+        }
     </style>
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="text-center mb-4">YOLOv8 目标检测</h1>
+        <h1 class="text-center mb-4">道路车辆检测系统</h1>
         
-        <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white mb-4">
             <div class="container-fluid">
                 <a class="navbar-brand" href="/">上传</a>
                 <div class="collapse navbar-collapse">
@@ -44,12 +133,20 @@
         
         <div class="row">
             <div class="col-md-6">
-                <h3>检测结果</h3>
-                <div id="result-image"></div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">检测结果</h3>
+                        <div id="result-image"></div>
+                    </div>
+                </div>
             </div>
             <div class="col-md-6">
-                <h3>检测信息</h3>
-                <div id="detections"></div>
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">检测信息</h3>
+                        <div id="detections"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -179,19 +276,25 @@
                 resultImage.innerHTML = `<img src="${imgUrl}" alt="检测结果">`;
                 
                 // 显示检测到的目标
-                let detectionsHtml = `<p class="mb-2"><strong>检测时间:</strong> ${result.timestamp}</p>`;
-                detectionsHtml += `<p class="mb-2"><strong>检测耗时:</strong> ${(result.elapsed_time * 1000).toFixed(2)} 毫秒</p>`;
-                detectionsHtml += `<p class="mb-2"><strong>模型权重:</strong> ${processModelPath(result.model_path)}</p>`;
-                result.detections.forEach((detection, index) => {
-                    detectionsHtml += `
-                        <div class="detection-item">
-                            <h5>目标 ${index + 1}</h5>
-                            <p>类别: ${detection.class}</p>
-                            <p>置信度: ${(detection.confidence * 100).toFixed(2)}%</p>
-                            <p>位置: (${detection.bbox[0].toFixed(2)}, ${detection.bbox[1].toFixed(2)}) - (${detection.bbox[2].toFixed(2)}, ${detection.bbox[3].toFixed(2)})</p>
-                        </div>
-                    `;
-                });
+                let detectionsHtml = `<p class="mb-3"><strong>检测时间:</strong> ${result.timestamp}</p>`;
+                detectionsHtml += `<p class="mb-3"><strong>检测耗时:</strong> ${(result.elapsed_time * 1000).toFixed(2)} 毫秒</p>`;
+                detectionsHtml += `<p class="mb-3"><strong>模型权重:</strong> ${processModelPath(result.model_path)}</p>`;
+                detectionsHtml += `<h4 class="mt-4 mb-3">检测到的目标:</h4>`;
+                
+                if (result.detections.length === 0) {
+                    detectionsHtml += `<p class="text-muted">未检测到任何目标</p>`;
+                } else {
+                    result.detections.forEach((detection, index) => {
+                        detectionsHtml += `
+                            <div class="detection-item">
+                                <h5>目标 ${index + 1}</h5>
+                                <p>类别: ${detection.class}</p>
+                                <p>置信度: ${(detection.confidence * 100).toFixed(2)}%</p>
+                                <p>位置: (${detection.bbox[0].toFixed(2)}, ${detection.bbox[1].toFixed(2)}) - (${detection.bbox[2].toFixed(2)}, ${detection.bbox[3].toFixed(2)})</p>
+                            </div>
+                        `;
+                    });
+                }
                 
                 detections.innerHTML = detectionsHtml;
             } catch (error) {
