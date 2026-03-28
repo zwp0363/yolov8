@@ -3,6 +3,8 @@ document.getElementById('upload-form').addEventListener('submit', async function
     
     const formData = new FormData();
     const imageFile = document.getElementById('image-upload').files[0];
+    const modelSelect = document.getElementById('model-select');
+    const customModelUpload = document.getElementById('custom-model-upload');
     
     if (!imageFile) {
         alert('请选择一张图片');
@@ -10,6 +12,14 @@ document.getElementById('upload-form').addEventListener('submit', async function
     }
     
     formData.append('image', imageFile);
+    
+    // 检查是否上传了自定义模型
+    if (customModelUpload.files.length > 0) {
+        formData.append('custom_model', customModelUpload.files[0]);
+    } else {
+        // 使用预定义模型
+        formData.append('model_path', modelSelect.value);
+    }
     
     // 显示上传的图像
     const uploadedImage = document.getElementById('uploaded-image');

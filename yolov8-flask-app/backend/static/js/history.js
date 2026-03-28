@@ -1,3 +1,14 @@
+// 处理模型路径，只显示最后三个部分
+function processModelPath(modelPath) {
+    if (!modelPath) return 'N/A';
+    // 统一使用Windows风格的反斜杠
+    modelPath = modelPath.replace(/\/|\\/g, '\\');
+    // 分割路径并取最后三个部分
+    const parts = modelPath.split('\\').filter(Boolean); // 过滤空字符串
+    const lastThreeParts = parts.slice(-3);
+    return lastThreeParts.join('\\'); // 显示为Windows风格的反斜杠
+}
+
 async function loadHistory() {
     try {
         const response = await fetch('/api/history');
@@ -24,6 +35,7 @@ async function loadHistory() {
                             <th>ID</th>
                             <th>检测时间</th>
                             <th>检测耗时</th>
+                            <th>模型权重</th>
                             <th>检测结果</th>
                             <th>操作</th>
                         </tr>
@@ -36,12 +48,14 @@ async function loadHistory() {
             const firstFewDetections = item.detections.slice(0, 3).map(d => d.class).join(', ');
             const moreDetections = detectionCount > 3 ? `...等${detectionCount}个目标` : '';
             const elapsedTime = item.elapsed_time ? (item.elapsed_time * 1000).toFixed(2) + ' 毫秒' : 'N/A';
+            const modelPath = processModelPath(item.model_path);
             
             historyHtml += `
                 <tr>
                     <td>${item.id}</td>
                     <td>${item.timestamp}</td>
                     <td>${elapsedTime}</td>
+                    <td>${modelPath}</td>
                     <td>${firstFewDetections} ${moreDetections}</td>
                     <td>
                         <a href="/result/${item.id}" class="btn btn-sm btn-primary me-2">查看</a>

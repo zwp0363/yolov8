@@ -2,6 +2,17 @@
 const urlParams = new URLSearchParams(window.location.search);
 const id = urlParams.get('id') || window.location.pathname.split('/').pop();
 
+// 处理模型路径，只显示最后三个部分
+function processModelPath(modelPath) {
+    if (!modelPath) return 'N/A';
+    // 统一使用Windows风格的反斜杠
+    modelPath = modelPath.replace(/\/|\\/g, '\\');
+    // 分割路径并取最后三个部分
+    const parts = modelPath.split('\\').filter(Boolean); // 过滤空字符串
+    const lastThreeParts = parts.slice(-3);
+    return lastThreeParts.join('\\'); // 显示为Windows风格的反斜杠
+}
+
 async function loadResult() {
     try {
         const response = await fetch(`/api/result/${id}`);
@@ -34,6 +45,7 @@ async function loadResult() {
         // 显示检测到的目标
         let detectionsHtml = `<p class="mb-2"><strong>检测时间:</strong> ${result.timestamp}</p>`;
         detectionsHtml += `<p class="mb-2"><strong>检测耗时:</strong> ${(result.elapsed_time * 1000).toFixed(2)} 毫秒</p>`;
+        detectionsHtml += `<p class="mb-2"><strong>模型权重:</strong> ${processModelPath(result.model_path)}</p>`;
         result.detections.forEach((detection, index) => {
             detectionsHtml += `
                 <div class="detection-item">

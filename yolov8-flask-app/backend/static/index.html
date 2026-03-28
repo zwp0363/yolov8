@@ -31,6 +31,22 @@
                     <div class="mb-3">
                         <input type="file" class="form-control" id="image-upload" accept="image/*" required>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">模型选择</label>
+                        <div class="mb-2">
+                            <label for="model-select" class="form-label">预定义模型</label>
+                            <select class="form-select" id="model-select">
+                                <option value="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\runs\\detect\\exp_LSKA-SENet-WIoU2\\weights\\best.pt">LSKA-SENet-WIoU2 模型</option>
+                                <option value="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\yolov8n.pt">YOLOv8n 模型</option>
+                                <option value="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\yolov5nu.pt">YOLOv5nu 模型</option>
+                                <option value="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\yolo11n.pt">YOLO11n 模型</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="custom-model-upload" class="form-label">或上传自定义权重文件</label>
+                            <input type="file" class="form-control" id="custom-model-upload" accept=".pt">
+                        </div>
+                    </div>
                     <button type="submit" class="btn btn-primary">检测</button>
                 </form>
                 <div id="uploaded-image" class="mt-4"></div>

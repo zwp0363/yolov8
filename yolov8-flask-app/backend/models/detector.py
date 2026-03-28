@@ -8,6 +8,7 @@ import time
 class YOLOv8Detector:
     def __init__(self, model_path="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\runs\\detect\\exp_LSKA-SENet-WIoU2\\weights\\best.pt"):
         self.model = YOLO(model_path)
+        self.model_path = model_path
     
     def detect(self, image_bytes):
         # 记录开始时间
@@ -42,4 +43,4 @@ class YOLOv8Detector:
         # 计算检测耗时
         elapsed_time = time.time() - start_time
         
-        return detections, annotated_image, elapsed_time
+        return detections, annotated_image, elapsed_time, self.model_path
