@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv8 目标检测</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">YOLOv8 目标检测</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h3>上传图像</h3>
+                <form id="upload-form">
+                    <div class="mb-3">
+                        <input type="file" class="form-control" id="image-upload" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">检测</button>
+                </form>
+                <div id="uploaded-image" class="mt-4"></div>
+            </div>
+            
+            <div class="col-md-6">
+                <h3>检测结果</h3>
+                <div id="result-image" class="mt-4"></div>
+                <div id="detections" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
