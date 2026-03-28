@@ -3,9 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YOLOv8 目标检测 - 历史记录</title>
+    <title>历史记录 - YOLOv8 目标检测</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .avatar-small {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-left: 10px;
+            object-fit: cover;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
@@ -20,15 +29,216 @@
                             <a class="nav-link active" href="/history">历史记录</a>
                         </li>
                     </ul>
+                    <ul class="navbar-nav" id="user-nav">
+                        <!-- 登录前显示 -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="/login">登录</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/register">注册</a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </nav>
         
-        <h3>历史检测记录</h3>
-        <div id="history-list" class="mt-4"></div>
+        <div class="row">
+            <div class="col-md-10 offset-md-1">
+                <h3 class="mb-4">检测历史记录</h3>
+                <div id="history-list"></div>
+            </div>
+        </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/history.js"></script>
+    <script>
+        // 检查用户登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/user/info');
+                const result = await response.json();
+                
+                if (!result.error) {
+                    // 用户已登录
+                    const userNav = document.getElementById('user-nav');
+                    
+                    // 生成头像HTML
+                    let avatarHtml = '';
+                    if (result.avatar) {
+                        // 使用浏览器兼容的方式处理头像数据
+                        try {
+                            // 手动将十六进制字符串转换为字节
+                            function hexToBytes(hex) {
+                                const bytes = new Uint8Array(hex.length / 2);
+                                for (let i = 0; i < hex.length; i += 2) {
+                                    bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+                                }
+                                return bytes;
+                            }
+                            
+                            // 转换为base64
+                            function bytesToBase64(bytes) {
+                                let binary = '';
+                                const len = bytes.byteLength;
+                                for (let i = 0; i < len; i++) {
+                                    binary += String.fromCharCode(bytes[i]);
+                                }
+                                return btoa(binary);
+                            }
+                            
+                            const bytes = hexToBytes(result.avatar);
+                            const base64 = bytesToBase64(bytes);
+                            const avatarUrl = `data:image/jpeg;base64,${base64}`;
+                            avatarHtml = `<img src="${avatarUrl}" alt="头像" class="avatar-small">`;
+                        } catch (e) {
+                            // 如果头像处理失败，使用默认头像
+                            avatarHtml = `<img src="https://ui-avatars.com/api/?name=${result.username}&background=random" alt="默认头像" class="avatar-small">`;
+                        }
+                    } else {
+                        // 使用默认头像占位符
+                        avatarHtml = `<img src="https://ui-avatars.com/api/?name=${result.username}&background=random" alt="默认头像" class="avatar-small">`;
+                    }
+                    
+                    userNav.innerHTML = `
+                        <li class="nav-item">
+                            <a class="nav-link" href="/profile">个人信息</a>
+                        </li>
+                        <li class="nav-item d-flex align-items-center">
+                            <span class="nav-link">欢迎，${result.username}</span>
+                            ${avatarHtml}
+                        </li>
+                        <li class="nav-item">
+                            <button class="btn btn-link nav-link" id="logout-btn">退出登录</button>
+                        </li>
+                    `;
+                    
+                    // 添加退出登录事件
+                    document.getElementById('logout-btn').addEventListener('click', async function() {
+                        try {
+                            await fetch('/api/logout', {
+                                method: 'POST'
+                            });
+                            window.location.reload();
+                        } catch (error) {
+                            console.error('退出登录失败:', error);
+                        }
+                    });
+                }
+            } catch (error) {
+                // 用户未登录，保持默认状态
+                console.error('检查登录状态失败:', error);
+            }
+        }
+        
+        // 处理模型路径，只显示最后三个部分
+        function processModelPath(modelPath) {
+            if (!modelPath) return 'N/A';
+            // 统一使用Windows风格的反斜杠
+            modelPath = modelPath.replace(/\/|\\/g, '\\');
+            // 分割路径并取最后三个部分
+            const parts = modelPath.split('\\').filter(Boolean); // 过滤空字符串
+            const lastThreeParts = parts.slice(-3);
+            return lastThreeParts.join('\\'); // 显示为Windows风格的反斜杠
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const history = await response.json();
+                
+                // 显示历史记录
+                const historyList = document.getElementById('history-list');
+                
+                if (history.length === 0) {
+                    historyList.innerHTML = '<p class="text-center">暂无检测记录</p>';
+                    return;
+                }
+                
+                let historyHtml = `
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>检测时间</th>
+                                    <th>检测耗时</th>
+                                    <th>模型权重</th>
+                                    <th>检测结果</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                history.forEach(item => {
+                    const detectionCount = item.detections.length;
+                    const firstFewDetections = item.detections.slice(0, 3).map(d => d.class).join(', ');
+                    const moreDetections = detectionCount > 3 ? `...等${detectionCount}个目标` : '';
+                    const elapsedTime = item.elapsed_time ? (item.elapsed_time * 1000).toFixed(2) + ' 毫秒' : 'N/A';
+                    const modelPath = processModelPath(item.model_path);
+                    
+                    historyHtml += `
+                        <tr>
+                            <td>${item.id}</td>
+                            <td>${item.timestamp}</td>
+                            <td>${elapsedTime}</td>
+                            <td>${modelPath}</td>
+                            <td>${firstFewDetections} ${moreDetections}</td>
+                            <td>
+                                <a href="/result/${item.id}" class="btn btn-sm btn-primary me-2">查看</a>
+                                <button class="btn btn-sm btn-danger" onclick="deleteRecord(${item.id})">删除</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                historyHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                historyList.innerHTML = historyHtml;
+            } catch (error) {
+                console.error('加载历史记录时发生错误:', error);
+                alert('加载历史记录时发生错误，请查看控制台获取详细信息');
+            }
+        }
+
+        async function deleteRecord(id) {
+            if (confirm('确定要删除这条检测记录吗？')) {
+                try {
+                    const response = await fetch(`/api/delete/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    if (result.success) {
+                        // 重新加载历史记录
+                        loadHistory();
+                    } else {
+                        alert(result.message || '删除失败');
+                    }
+                } catch (error) {
+                    console.error('删除记录时发生错误:', error);
+                }
+            }
+        }
+        
+        // 页面加载时检查登录状态并加载历史记录
+        window.onload = function() {
+            checkLoginStatus();
+            loadHistory();
+        };
+    </script>
 </body>
 </html>
