@@ -3,12 +3,16 @@ import cv2
 import numpy as np
 from PIL import Image
 import io
+import time
 
 class YOLOv8Detector:
     def __init__(self, model_path="D:\\yolov8\\蓝云数据迁移\\yolov8\\yolov8\\yolov8\\runs\\detect\\exp_LSKA-SENet-WIoU2\\weights\\best.pt"):
         self.model = YOLO(model_path)
     
     def detect(self, image_bytes):
+        # 记录开始时间
+        start_time = time.time()
+        
         # 将字节流转换为图像
         image = Image.open(io.BytesIO(image_bytes))
         image = np.array(image)
@@ -35,4 +39,7 @@ class YOLOv8Detector:
         # 生成带标注的图像
         annotated_image = results[0].plot()
         
-        return detections, annotated_image
+        # 计算检测耗时
+        elapsed_time = time.time() - start_time
+        
+        return detections, annotated_image, elapsed_time

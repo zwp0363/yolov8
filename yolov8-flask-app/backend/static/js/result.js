@@ -1,26 +1,10 @@
-document.getElementById('upload-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData();
-    const imageFile = document.getElementById('image-upload').files[0];
-    
-    if (!imageFile) {
-        alert('请选择一张图片');
-        return;
-    }
-    
-    formData.append('image', imageFile);
-    
-    // 显示上传的图像
-    const uploadedImage = document.getElementById('uploaded-image');
-    uploadedImage.innerHTML = `<img src="${URL.createObjectURL(imageFile)}" alt="上传的图像">`;
-    
+// 获取URL中的检测ID
+const urlParams = new URLSearchParams(window.location.search);
+const id = urlParams.get('id') || window.location.pathname.split('/').pop();
+
+async function loadResult() {
     try {
-        // 发送请求到后端
-        const response = await fetch('/api/detect', {
-            method: 'POST',
-            body: formData
-        });
+        const response = await fetch(`/api/result/${id}`);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -48,7 +32,8 @@ document.getElementById('upload-form').addEventListener('submit', async function
         resultImage.innerHTML = `<img src="${imgUrl}" alt="检测结果">`;
         
         // 显示检测到的目标
-        let detectionsHtml = '';
+        let detectionsHtml = `<p class="mb-2"><strong>检测时间:</strong> ${result.timestamp}</p>`;
+        detectionsHtml += `<p class="mb-2"><strong>检测耗时:</strong> ${(result.elapsed_time * 1000).toFixed(2)} 毫秒</p>`;
         result.detections.forEach((detection, index) => {
             detectionsHtml += `
                 <div class="detection-item">
@@ -62,7 +47,10 @@ document.getElementById('upload-form').addEventListener('submit', async function
         
         detections.innerHTML = detectionsHtml;
     } catch (error) {
-        console.error('检测过程中发生错误:', error);
-        alert('检测过程中发生错误，请查看控制台获取详细信息');
+        console.error('加载结果时发生错误:', error);
+        alert('加载结果时发生错误，请查看控制台获取详细信息');
     }
-});
+}
+
+// 页面加载时加载结果
+window.onload = loadResult;
