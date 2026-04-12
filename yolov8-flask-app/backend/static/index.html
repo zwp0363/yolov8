@@ -157,7 +157,7 @@
             
             // 检查是否上传了自定义模型
             if (customModelInput.files.length) {
-                formData.append('model', customModelInput.files[0]);
+                formData.append('custom_model', customModelInput.files[0]);
             } else {
                 formData.append('model_path', modelSelect.value);
             }
@@ -183,8 +183,8 @@
                 if (result.error) {
                     alert(result.error);
                 } else {
-                    // 跳转到结果页面
-                    window.location.href = `/result?image=${encodeURIComponent(result.image_path)}&detections=${encodeURIComponent(JSON.stringify(result.detections))}`;
+                    // 跳转到结果页面，使用正确的路径参数格式
+                    window.location.href = `/result/${result.id}`;
                 }
             } catch (error) {
                 console.error('检测失败:', error);

@@ -103,6 +103,10 @@
             margin-bottom: 0.3rem;
             color: #495057;
         }
+        
+        .download-btn {
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +141,9 @@
                     <div class="card-body">
                         <h3 class="card-title">检测结果</h3>
                         <div id="result-image"></div>
+                        <button id="download-btn" class="btn btn-primary download-btn" style="display: none;">
+                            <i class="bi bi-download"></i> 下载检测结果图片
+                        </button>
                     </div>
                 </div>
             </div>
@@ -246,6 +253,17 @@
             return lastThreeParts.join('\\'); // 显示为Windows风格的反斜杠
         }
 
+        // 下载图片功能
+        function downloadImage() {
+            const img = document.querySelector('#result-image img');
+            if (img) {
+                const link = document.createElement('a');
+                link.href = img.src;
+                link.download = `detection_result_${id}.jpg`;
+                link.click();
+            }
+        }
+
         async function loadResult() {
             try {
                 const response = await fetch(`/api/result/${id}`);
@@ -259,6 +277,7 @@
                 // 显示检测结果
                 const resultImage = document.getElementById('result-image');
                 const detections = document.getElementById('detections');
+                const downloadBtn = document.getElementById('download-btn');
                 
                 // 将十六进制字符串转换为图像（浏览器兼容版本）
                 function hexToBytes(hex) {
@@ -274,6 +293,11 @@
                 const imgUrl = URL.createObjectURL(blob);
                 
                 resultImage.innerHTML = `<img src="${imgUrl}" alt="检测结果">`;
+                
+                // 显示下载按钮
+                downloadBtn.style.display = 'block';
+                // 绑定下载事件
+                downloadBtn.addEventListener('click', downloadImage);
                 
                 // 显示检测到的目标
                 let detectionsHtml = `<p class="mb-3"><strong>检测时间:</strong> ${result.timestamp}</p>`;

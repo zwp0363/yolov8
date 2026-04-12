@@ -88,6 +88,16 @@
             background-color: #c82333;
             border-color: #bd2130;
         }
+        
+        .pagination {
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .pagination .page-item.active .page-link {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
     </style>
 </head>
 <body>
@@ -122,6 +132,7 @@
                     <div class="card-body">
                         <h3 class="card-title mb-4">检测历史记录</h3>
                         <div id="history-list"></div>
+                        <div id="pagination" class="mt-4"></div>
                     </div>
                 </div>
             </div>
@@ -130,6 +141,12 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 分页参数
+        let currentPage = 1;
+        const pageSize = 10;
+        let totalPages = 1;
+        let totalRecords = 0;
+        
         // 检查用户登录状态
         async function checkLoginStatus() {
             try {
@@ -219,73 +236,143 @@
             return lastThreeParts.join('\\'); // 显示为Windows风格的反斜杠
         }
 
-        async function loadHistory() {
+        async function loadHistory(page = 1) {
             try {
-                const response = await fetch('/api/history');
+                // 尝试使用分页API
+                const response = await fetch(`/api/history?page=${page}&page_size=${pageSize}`);
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const history = await response.json();
-                
-                // 显示历史记录
-                const historyList = document.getElementById('history-list');
-                
-                if (history.length === 0) {
-                    historyList.innerHTML = '<p class="text-center text-muted py-4">暂无检测记录</p>';
+                    // 如果分页API失败，尝试获取所有数据并在前端分页
+                    const allResponse = await fetch('/api/history');
+                    if (!allResponse.ok) {
+                        throw new Error(`HTTP error! status: ${allResponse.status}`);
+                    }
+                    
+                    const allHistory = await allResponse.json();
+                    totalRecords = allHistory.length;
+                    totalPages = Math.ceil(totalRecords / pageSize);
+                    
+                    // 计算当前页的数据
+                    const start = (page - 1) * pageSize;
+                    const end = start + pageSize;
+                    const history = allHistory.slice(start, end);
+                    
+                    displayHistory(history);
+                    displayPagination();
                     return;
                 }
                 
-                let historyHtml = `
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>检测时间</th>
-                                    <th>检测耗时</th>
-                                    <th>模型权重</th>
-                                    <th>检测结果</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
+                // 如果分页API成功
+                const result = await response.json();
+                const history = result.data || result;
+                totalRecords = result.total || history.length;
+                totalPages = Math.ceil(totalRecords / pageSize);
                 
-                history.forEach(item => {
-                    const detectionCount = item.detections.length;
-                    const firstFewDetections = item.detections.slice(0, 3).map(d => d.class).join(', ');
-                    const moreDetections = detectionCount > 3 ? `...等${detectionCount}个目标` : '';
-                    const elapsedTime = item.elapsed_time ? (item.elapsed_time * 1000).toFixed(2) + ' 毫秒' : 'N/A';
-                    const modelPath = processModelPath(item.model_path);
-                    
-                    historyHtml += `
-                        <tr>
-                            <td>${item.id}</td>
-                            <td>${item.timestamp}</td>
-                            <td>${elapsedTime}</td>
-                            <td>${modelPath}</td>
-                            <td>${firstFewDetections} ${moreDetections}</td>
-                            <td>
-                                <a href="/result/${item.id}" class="btn btn-sm btn-primary me-2">查看</a>
-                                <button class="btn btn-sm btn-danger" onclick="deleteRecord(${item.id})">删除</button>
-                            </td>
-                        </tr>
-                    `;
-                });
-                
-                historyHtml += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                
-                historyList.innerHTML = historyHtml;
+                displayHistory(history);
+                displayPagination();
             } catch (error) {
                 console.error('加载历史记录时发生错误:', error);
                 alert('加载历史记录时发生错误，请查看控制台获取详细信息');
             }
+        }
+        
+        function displayHistory(history) {
+            // 显示历史记录
+            const historyList = document.getElementById('history-list');
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="text-center text-muted py-4">暂无检测记录</p>';
+                return;
+            }
+            
+            let historyHtml = `
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>检测时间</th>
+                                <th>检测耗时</th>
+                                <th>模型权重</th>
+                                <th>检测结果</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            history.forEach(item => {
+                const detectionCount = item.detections.length;
+                const firstFewDetections = item.detections.slice(0, 3).map(d => d.class).join(', ');
+                const moreDetections = detectionCount > 3 ? `...等${detectionCount}个目标` : '';
+                const elapsedTime = item.elapsed_time ? (item.elapsed_time * 1000).toFixed(2) + ' 毫秒' : 'N/A';
+                const modelPath = processModelPath(item.model_path);
+                
+                historyHtml += `
+                    <tr>
+                        <td>${item.id}</td>
+                        <td>${item.timestamp}</td>
+                        <td>${elapsedTime}</td>
+                        <td>${modelPath}</td>
+                        <td>${firstFewDetections} ${moreDetections}</td>
+                        <td>
+                            <a href="/result/${item.id}" class="btn btn-sm btn-primary me-2">查看</a>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRecord(${item.id})">删除</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            historyHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            historyList.innerHTML = historyHtml;
+        }
+        
+        function displayPagination() {
+            const paginationContainer = document.getElementById('pagination');
+            
+            // 即使只有一页，也显示分页控件（如果有数据）
+            if (totalRecords === 0) {
+                paginationContainer.innerHTML = '';
+                return;
+            }
+            
+            let paginationHtml = `
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'aria-disabled="true"' : ''}>上一页</a>
+                        </li>
+            `;
+            
+            // 显示页码
+            for (let i = 1; i <= totalPages; i++) {
+                paginationHtml += `
+                    <li class="page-item ${currentPage === i ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                    </li>
+                `;
+            }
+            
+            paginationHtml += `
+                        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                            <a class="page-link" href="#" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'aria-disabled="true"' : ''}>下一页</a>
+                        </li>
+                    </ul>
+                </nav>
+            `;
+            
+            paginationContainer.innerHTML = paginationHtml;
+        }
+        
+        function changePage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadHistory(currentPage);
         }
 
         async function deleteRecord(id) {
@@ -301,8 +388,8 @@
                     
                     const result = await response.json();
                     if (result.success) {
-                        // 重新加载历史记录
-                        loadHistory();
+                        // 重新加载当前页的历史记录
+                        loadHistory(currentPage);
                     } else {
                         alert(result.message || '删除失败');
                     }
@@ -315,7 +402,7 @@
         // 页面加载时检查登录状态并加载历史记录
         window.onload = function() {
             checkLoginStatus();
-            loadHistory();
+            loadHistory(currentPage);
         };
     </script>
 </body>
