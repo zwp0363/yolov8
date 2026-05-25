@@ -16,7 +16,7 @@ torch==2.0.1
 tqdm>=4.64.0
 psutil
 py-cpuinfo
-pandas>=1.1.4
+pandas>=2.3.3
 ultralytics-thop>=2.0.0
 
 # 模型导出依赖项
