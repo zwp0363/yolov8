@@ -35,7 +35,7 @@ tensorboard
 mlflow
 
 # 额外功能依赖项
-hub-sdk>=0.0.12
+hub-sdk>=0.0.24
 ipython
 albumentations>=1.4.6
 pycocotools>=2.0.7
