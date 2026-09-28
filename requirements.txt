@@ -26,7 +26,7 @@ openvino>=2024.0.0
 
 # 解决方案模块依赖项
 shapely>=2.0.0
-streamlit>=1.29.0
+streamlit>=1.64.0
 flask
 
 # 日志和监控依赖项
