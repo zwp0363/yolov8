@@ -17,7 +17,7 @@ tqdm>=4.64.0
 psutil
 py-cpuinfo
 pandas>=1.1.4
-ultralytics-thop>=2.0.0
+ultralytics-thop>=2.1.6
 
 # 模型导出依赖项
 # 这些是常用的导出功能依赖，与CUDA 11.8兼容
